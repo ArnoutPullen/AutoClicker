@@ -1,10 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -12,21 +6,27 @@ namespace AutoClicker
 {
     public partial class AutoClickerForm : Form
     {
-        private readonly Timer Timer = new Timer();
-        private System.Timers.Timer ClickTimer = new System.Timers.Timer();
+        private readonly Timer Timer;
+        private readonly GlobalKeyListener globalKeyListener;
+        private readonly GlobalMouseAPI globalMouseApi;
 
         private int ClickIntervalHours = 0;
         private int ClickIntervalMinutes = 0;
         private int ClickIntervalSeconds = 0;
         private int ClickIntervalMiliseconds = 0;
         private int RepeatTimes = 1;
+        private bool IsPickingLocation = false;
 
         public AutoClickerForm()
         {
             InitializeComponent();
 
-            GlobalKeyListener.OnKeyPress += OnKeyPress;
+            globalKeyListener = new GlobalKeyListener();
+            globalKeyListener.OnKeyPress += OnKeyPress;
+            // Instantiate the GlobalMouseAPI class
+            globalMouseApi = new GlobalMouseAPI();
 
+            Timer = new Timer();
             Timer.Interval = 100;
             Timer.Tick += new EventHandler(TimerTickEvent);
             Stop.Enabled = false;
@@ -123,21 +123,51 @@ namespace AutoClicker
                     return;
                 }
 
+                // Single click
                 if (ClickTypeComboBox.SelectedIndex == 0)
                 {
-                    // Single click
-                    GlobalMouseAPI.LeftClick(x, y);
+                    if (MouseButtonComboBox.SelectedIndex == 0)
+                    {
+                        // Left click
+                        GlobalMouseAPI.LeftClick(x, y);
+                    } else if (MouseButtonComboBox.SelectedIndex == 1)
+                    {
+                        // Middle click
+                        GlobalMouseAPI.MiddleClick(x, y);
+                    } else if (MouseButtonComboBox.SelectedIndex == 2)
+                    {
+                        // Right click
+                        GlobalMouseAPI.RightClick(x, y);
+                    } else
+                    {
+                        MessageBox.Show("Invalid mouse button", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 else if (ClickTypeComboBox.SelectedIndex == 1)
                 {
                     // Double click
-                    GlobalMouseAPI.LeftClick(x, y);
-                    GlobalMouseAPI.LeftClick(x, y);
-                }
-                else if (ClickTypeComboBox.SelectedIndex == 2)
-                {
-                    // Middle click
-                    GlobalMouseAPI.MiddleClick(x, y);
+                    if (MouseButtonComboBox.SelectedIndex == 0)
+                    {
+                        // Left click
+                        GlobalMouseAPI.LeftClick(x, y);
+                        GlobalMouseAPI.LeftClick(x, y);
+                    }
+                    else if (MouseButtonComboBox.SelectedIndex == 1)
+                    {
+                        // Middle click
+                        GlobalMouseAPI.MiddleClick(x, y);
+                        GlobalMouseAPI.MiddleClick(x, y);
+                    }
+                    else if (MouseButtonComboBox.SelectedIndex == 2)
+                    {
+                        // Right click
+                        GlobalMouseAPI.RightClick(x, y);
+                        GlobalMouseAPI.RightClick(x, y);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Invalid mouse button", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 else
                 {
@@ -147,19 +177,50 @@ namespace AutoClicker
             {
                 if (ClickTypeComboBox.SelectedIndex == 0)
                 {
-                    // Single click
-                    GlobalMouseAPI.LeftClick();
+                    if (MouseButtonComboBox.SelectedIndex == 0)
+                    {
+                        // Left click
+                        GlobalMouseAPI.LeftClick();
+                    }
+                    else if (MouseButtonComboBox.SelectedIndex == 1)
+                    {
+                        // Middle click
+                        GlobalMouseAPI.MiddleClick();
+                    }
+                    else if (MouseButtonComboBox.SelectedIndex == 2)
+                    {
+                        // Right click
+                        GlobalMouseAPI.RightClick();
+                    } else
+                    {
+                        MessageBox.Show("Invalid mouse button", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 else if (ClickTypeComboBox.SelectedIndex == 1)
                 {
                     // Double click
-                    GlobalMouseAPI.LeftClick();
-                    GlobalMouseAPI.LeftClick();
-                }
-                else if (ClickTypeComboBox.SelectedIndex == 2)
-                {
-                    // Middle click
-                    GlobalMouseAPI.MiddleClick();
+                    if (MouseButtonComboBox.SelectedIndex == 0)
+                    {
+                        // Left click
+                        GlobalMouseAPI.LeftClick();
+                        GlobalMouseAPI.LeftClick();
+                    }
+                    else if (MouseButtonComboBox.SelectedIndex == 1)
+                    {
+                        // Middle click
+                        GlobalMouseAPI.MiddleClick();
+                        GlobalMouseAPI.MiddleClick();
+                    }
+                    else if (MouseButtonComboBox.SelectedIndex == 2)
+                    {
+                        // Right click
+                        GlobalMouseAPI.RightClick();
+                        GlobalMouseAPI.RightClick();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Invalid mouse button", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 else
                 {
@@ -323,20 +384,47 @@ namespace AutoClicker
             Properties.Settings.Default.Save();
         }
 
-        private void PickLocationButton_Click(object sender, EventArgs e)
+        private async void PickLocationButton_Click(object sender, EventArgs e)
         {
-            // TODO: Pick location
             // Hide the form
             this.Hide();
 
-            // Show tooltip at mouse with instructions and x/y coordinates
+            // TODO: Show tooltip at mouse with instructions and x/y coordinates
 
-            // Wait for user to click
-            // Get the x/y coordinates
+            IsPickingLocation = true;
 
+            // Subscribe to the mouse event
+            globalMouseApi.MouseAction += OnMouseAction;
+
+            // Wait for the mouse event
+            while (IsPickingLocation)
+            {
+                await Task.Delay(1000);
+            }
+
+            // Unsubscribe from the mouse event
+            globalMouseApi.MouseAction -= OnMouseAction;
+
+            IsPickingLocation = false;
 
             // Show the form
             this.Show();
+        }
+
+        private void OnMouseAction(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                IsPickingLocation = false;
+
+                PickLocationXTextBox.Text = e.X.ToString();
+                PickLocationYTextBox.Text = e.Y.ToString();
+
+                // Store the x and y coordinates
+                Properties.Settings.Default.PickLocationX = e.X;
+                Properties.Settings.Default.PickLocationY = e.Y;
+                Properties.Settings.Default.Save();
+            }
         }
 
         private void PickLocationXTextBox_TextChanged(object sender, EventArgs e)

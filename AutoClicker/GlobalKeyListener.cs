@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace AutoClicker
@@ -14,24 +10,36 @@ namespace AutoClicker
         private const int WH_KEYBOARD_LL = 13;
         private const int WM_KEYDOWN = 0x0100;
 
-        private static IntPtr hookID = IntPtr.Zero;
-        private static readonly LowLevelKeyboardProc proc = HookCallback;
+        private IntPtr hookID = IntPtr.Zero;
+        private readonly LowLevelKeyboardProc proc;
 
         // Define the delegate type
         public delegate void OnKeyPressEventHandler(Keys rawr);
-        public static event OnKeyPressEventHandler OnKeyPress;
+        public event OnKeyPressEventHandler OnKeyPress;
 
-        public static void StartListening()
+        public GlobalKeyListener()
+        {
+            proc = HookCallback;
+
+            StartListening();
+        }
+
+        ~GlobalKeyListener()
+        {
+            StopListening();
+        }
+
+        public void StartListening()
         {
             hookID = SetHook(proc);
         }
 
-        public static void StopListening()
+        public void StopListening()
         {
             UnhookWindowsHookEx(hookID);
         }
          
-        private static IntPtr SetHook(LowLevelKeyboardProc proc)
+        private IntPtr SetHook(LowLevelKeyboardProc proc)
         {
             using (Process curProcess = Process.GetCurrentProcess())
             using (ProcessModule curModule = curProcess.MainModule)
@@ -43,7 +51,7 @@ namespace AutoClicker
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
-        private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+        private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
             if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN)
             {
